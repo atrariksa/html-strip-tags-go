@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"text/template"
@@ -199,7 +200,8 @@ func StripTags(html string) string {
 						}
 					}
 				}
-				b.Write(s[i:j])
+				sByte := []byte(string(s[i:j]) + " ")
+				b.Write(sByte)
 			} else {
 				allText = false
 			}
@@ -219,9 +221,23 @@ func StripTags(html string) string {
 	if allText {
 		return html
 	} else if c.state == stateText || c.state == stateRCDATA {
-		b.Write(s[i:])
+		sByte := []byte(string(s[i:]) + " ")
+		b.Write(sByte)
 	}
-	return b.String()
+
+	tOut := sReplacer(b.String(), " ")
+	return tOut
+}
+
+func sReplacer(text, replacer string) string {
+	re := regexp.MustCompile(`\x{000D}\x{000A}|[\x{000A}\x{000B}\x{000C}\x{000D}\x{0085}\x{2028}\x{2029}]`)
+	t := re.ReplaceAllString(text, replacer)
+	var r = strings.NewReplacer("\t", replacer, "\f", replacer, "&nbsp;", "")
+	t = r.Replace(t)
+	rws := regexp.MustCompile(`[\s\p{Zs}]{2,}`)
+	t = rws.ReplaceAllString(t, replacer)
+	t = strings.TrimSpace(t)
+	return t
 }
 
 // htmlNameFilter accepts valid parts of an HTML attribute or tag name or
